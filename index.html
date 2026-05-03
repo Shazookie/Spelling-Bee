@@ -593,9 +593,10 @@ body {
   min-width: 280px;
 }
 .result-overlay.show .result-card { transform: scale(1) translateY(0); }
-.result-card.correct-card   { background: var(--ok-border);  border: var(--bw) solid #0F3A18; }
-.result-card.incorrect-card { background: var(--err-border); border: var(--bw) solid #3A0F0F; }
-.result-card.winner-card    { background: var(--border);     border: var(--bw) solid var(--border-md); }
+.result-card.correct-card     { background: var(--ok-border);  border: var(--bw) solid #0F3A18; }
+.result-card.incorrect-card   { background: var(--err-border); border: var(--bw) solid #3A0F0F; }
+.result-card.winner-card      { background: var(--border);     border: var(--bw) solid var(--border-md); }
+.result-card.tiebreaker-card  { background: #2C1800;           border: var(--bw) solid #C07828; }
 .result-icon   { font-size: 3rem; animation: pop-big .5s cubic-bezier(.34,1.56,.64,1); }
 .result-title  { font-family: var(--f-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
 .result-sub    { font-family: var(--f-body); font-size: .88rem; color: rgba(255,255,255,.7); }
