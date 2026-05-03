@@ -809,6 +809,99 @@ body {
 .hist-chip.winner { border-color: var(--border); background: var(--surface-3); color: var(--text); font-weight: 700; }
 
 /* ============================================================
+   QUIT BUTTON
+   ============================================================ */
+.btn-quit {
+  padding: 7px 14px;
+  border-radius: var(--r);
+  border: var(--bw) solid var(--border-lt);
+  background: transparent;
+  font-family: var(--f-display);
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all .14s;
+  white-space: nowrap;
+}
+.btn-quit:hover  { border-color: var(--err-border); color: var(--err-text); background: var(--err-bg); }
+.btn-quit:active { transform: scale(.95); }
+
+/* ============================================================
+   SHARED PROMPT OVERLAY  (quit confirm + diff prompt)
+   ============================================================ */
+.prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,23,20,.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s;
+}
+.prompt-overlay.show { opacity: 1; pointer-events: all; }
+
+.prompt-card {
+  width: 92%;
+  max-width: 400px;
+  background: var(--surface);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transform: scale(.9) translateY(10px);
+  transition: transform .3s cubic-bezier(.34,1.4,.64,1);
+}
+.prompt-overlay.show .prompt-card { transform: scale(1) translateY(0); }
+
+.prompt-title {
+  font-family: var(--f-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--text);
+  line-height: 1.2;
+}
+.prompt-sub {
+  font-family: var(--f-body);
+  font-size: .85rem;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.prompt-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.prompt-actions .btn { flex: 1; min-width: 120px; padding: 11px 16px; font-size: .75rem; }
+
+/* Diff prompt specifics */
+.diff-option-label {
+  font-family: var(--f-display);
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 2px;
+  display: block;
+}
+.diff-option-name {
+  font-family: var(--f-display);
+  font-size: .88rem;
+  font-weight: 700;
+  color: grey;
+}
+
+/* ============================================================
    ANIMATIONS
    ============================================================ */
 @keyframes slide-up {
@@ -890,7 +983,7 @@ body {
           <button class="diff-btn"        data-diff="hard"     onclick="selectDiff(this)">Hard</button>
           <button class="diff-btn"        data-diff="veryHard" onclick="selectDiff(this)">Very Hard</button>
         </div>
-        <div class="diff-desc" id="diff-desc">Simple everyday words. Difficulty increases every 3 rounds.</div>
+        <div class="diff-desc" id="diff-desc">Simple everyday words. You can increase difficulty manually after each round.</div>
       </div>
 
       <div class="divider"></div>
@@ -918,6 +1011,7 @@ body {
           <span class="t-label">Difficulty</span>
           <span id="diff-badge" class="badge-num" style="font-size:.8rem;letter-spacing:.04em">Easy</span>
         </div>
+        <button class="btn-quit" onclick="showQuitConfirm()">End Game</button>
       </div>
     </div>
 
@@ -969,6 +1063,35 @@ body {
     <div id="result-title" class="result-title"></div>
     <div id="result-sub"   class="result-sub"></div>
     <div id="result-word"  class="result-word"></div>
+  </div>
+</div>
+
+
+<!-- =====================================================
+     QUIT CONFIRM OVERLAY
+     ===================================================== -->
+<div id="quit-overlay" class="prompt-overlay" onclick="handleQuitBackdrop(event)">
+  <div class="prompt-card">
+    <div class="prompt-title">End this game?</div>
+    <div class="prompt-sub">Stats will be saved to history.</div>
+    <div class="prompt-actions">
+      <button class="btn btn-ghost" onclick="closeQuitConfirm()">Keep Playing</button>
+      <button class="btn btn-primary" style="background:var(--err-border);border-color:var(--err-border)" onclick="confirmQuit()">End Game</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- =====================================================
+     DIFFICULTY PROMPT OVERLAY
+     ===================================================== -->
+<div id="diff-prompt-overlay" class="prompt-overlay">
+  <div class="prompt-card">
+    <div class="prompt-title" id="diff-prompt-title">Round complete.</div>
+    <div class="prompt-sub">Choose the difficulty for the next round.</div>
+    <div class="prompt-actions" id="diff-prompt-actions">
+      <!-- Buttons injected by JS -->
+    </div>
   </div>
 </div>
 
@@ -1102,7 +1225,7 @@ const WORD_BANKS = {
 const DIFFICULTY_ORDER  = ['easy','normal','hard','veryHard'];
 const DIFFICULTY_LABELS = { easy:'Easy', normal:'Normal', hard:'Hard', veryHard:'Very Hard' };
 const DIFF_DESCS = {
-  easy:     'Simple everyday words. Difficulty increases every 3 rounds.',
+  easy:     'Simple everyday words. You can increase difficulty manually after each round.',
   normal:   'Common words with some tricky spelling.',
   hard:     'Challenging — for strong spellers.',
   veryHard: 'Expert level. Good luck.'
@@ -1223,15 +1346,16 @@ function processNextTurn() {
 
   if (G.turnQueue.length === 0) {
     const active = G.players.filter(p => p.status === 'active');
-    if (active.length === 0)                             { endGame(null);     return; }
-    if (active.length === 1 && G.players.length > 1)    { endGame(active[0]); return; }
+    if (active.length === 0)                          { endGame(null);      return; }
+    if (active.length === 1 && G.players.length > 1) { endGame(active[0]); return; }
 
-    // Next round
-    G.currentRound++;
-    maybeUpdateDifficulty();
-    buildTurnQueue();
-    updateHeader();
-    processNextTurn();
+    // Round complete — ask about difficulty before starting next
+    showDiffPrompt(() => {
+      G.currentRound++;
+      buildTurnQueue();
+      updateHeader();
+      processNextTurn();
+    });
     return;
   }
 
@@ -1242,21 +1366,71 @@ function processNextTurn() {
   updateGameDisplay();
 }
 
-function maybeUpdateDifficulty() {
-  const startIdx = DIFFICULTY_ORDER.indexOf(G.startDiff);
-  const levelsUp = Math.floor((G.currentRound - 1) / 3);
-  const newIdx   = Math.min(startIdx + levelsUp, DIFFICULTY_ORDER.length - 1);
-  const newDiff  = DIFFICULTY_ORDER[newIdx];
-  if (newDiff !== G.currentDiff) {
-    G.currentDiff = newDiff;
-    playSound('levelUp');
-    const el = document.getElementById('diff-badge');
-    if (el) {
-      el.style.fontWeight = '800';
-      el.style.color      = 'var(--text)';
-      setTimeout(() => { el.style.fontWeight = ''; el.style.color = ''; }, 700);
-    }
+/* ================================================
+   DIFFICULTY PROMPT
+   ================================================ */
+function showDiffPrompt(callback) {
+  const currentIdx = DIFFICULTY_ORDER.indexOf(G.currentDiff);
+  const atMax      = currentIdx >= DIFFICULTY_ORDER.length - 1;
+  const nextDiff   = atMax ? null : DIFFICULTY_ORDER[currentIdx + 1];
+
+  document.getElementById('diff-prompt-title').textContent =
+    `Round ${G.currentRound} complete.`;
+
+  const actions = document.getElementById('diff-prompt-actions');
+  actions.innerHTML = '';
+
+  // "Keep current" button
+  const keepBtn = document.createElement('button');
+  keepBtn.className   = 'btn btn-ghost';
+  keepBtn.innerHTML   = `<span><span class="diff-option-label">Keep</span><span class="diff-option-name">${DIFFICULTY_LABELS[G.currentDiff]}</span></span>`;
+  keepBtn.onclick     = () => { closeDiffPrompt(); callback(); };
+  actions.appendChild(keepBtn);
+
+  // "Increase" button (only if not at max)
+  if (nextDiff) {
+    const upBtn = document.createElement('button');
+    upBtn.className = 'btn btn-primary';
+    upBtn.innerHTML = `<span><span class="diff-option-label">Increase to</span><span class="diff-option-name">${DIFFICULTY_LABELS[nextDiff]}</span></span>`;
+    upBtn.onclick   = () => {
+      G.currentDiff = nextDiff;
+      playSound('levelUp');
+      closeDiffPrompt();
+      callback();
+    };
+    actions.appendChild(upBtn);
   }
+
+  document.getElementById('diff-prompt-overlay').classList.add('show');
+}
+
+function closeDiffPrompt() {
+  document.getElementById('diff-prompt-overlay').classList.remove('show');
+}
+
+/* ================================================
+   QUIT CONFIRM
+   ================================================ */
+function showQuitConfirm() {
+  if (G.phase !== 'playing') return;
+  document.getElementById('quit-overlay').classList.add('show');
+}
+
+function closeQuitConfirm() {
+  document.getElementById('quit-overlay').classList.remove('show');
+}
+
+function handleQuitBackdrop(e) {
+  if (e.target === document.getElementById('quit-overlay')) closeQuitConfirm();
+}
+
+function confirmQuit() {
+  closeQuitConfirm();
+  G.phase = 'gameover';
+  G.locked = true;
+  saveSession();
+  renderLeaderboard();
+  showScreen('leaderboard-screen');
 }
 
 function getRandomWord() {
