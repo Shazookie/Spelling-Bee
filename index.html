@@ -810,6 +810,46 @@ body {
 .hist-chip.winner { border-color: var(--border); background: var(--surface-3); color: var(--text); font-weight: 700; }
 
 /* ============================================================
+   TIEBREAKER BADGE
+   ============================================================ */
+.tiebreaker-badge {
+  display: none;
+  padding: 6px 12px;
+  border: var(--bw) solid #C07828;
+  border-radius: var(--r);
+  background: #2C1800;
+  font-family: var(--f-display);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #F0A848;
+  white-space: nowrap;
+}
+.tiebreaker-badge.visible { display: block; }
+
+/* ============================================================
+   REROLL BUTTON
+   ============================================================ */
+.btn-reroll {
+  padding: 9px 16px;
+  border-radius: var(--r);
+  border: var(--bw) solid var(--border-lt);
+  background: transparent;
+  font-family: var(--f-display);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all .14s;
+  white-space: nowrap;
+}
+.btn-reroll:hover  { border-color: var(--border-md); color: var(--text); background: var(--surface-2); }
+.btn-reroll:active { transform: scale(.95); }
+
+/* ============================================================
    QUIT BUTTON
    ============================================================ */
 .btn-quit {
@@ -1012,6 +1052,7 @@ body {
           <span class="t-label">Difficulty</span>
           <span id="diff-badge" class="badge-num" style="font-size:.8rem;letter-spacing:.04em">Easy</span>
         </div>
+        <span id="tiebreaker-badge" class="tiebreaker-badge">Sudden Death</span>
         <button class="btn-quit" onclick="showQuitConfirm()">End Game</button>
       </div>
     </div>
@@ -1043,6 +1084,9 @@ body {
         <div class="hint-block">
           <div class="hint-line"><span class="kbd">Enter</span> to submit</div>
           <div class="hint-line"><span class="kbd">Backspace</span> to erase</div>
+          <div style="margin-top:6px">
+            <button class="btn-reroll" onclick="rerollWord()">↻ Re-roll Word</button>
+          </div>
         </div>
         <div>
           <button class="btn-override incorrect-ov" onclick="overrideIncorrect()">Mark Incorrect</button>
@@ -1181,22 +1225,44 @@ function playSound(name) {
    ================================================ */
 const WORD_BANKS = {
   easy: [
-    'cat','dog','sun','hat','map','run','big','cup','fish','bird',
-    'cake','jump','play','cold','warm','fast','book','tree','face','tall',
-    'ball','bell','call','fall','hall','wall','will','fill','hill','milk',
-    'ring','sing','king','wing','frog','blog','flag','glad','snap','trap',
-    'plan','spin','twin','grin','flip','slip','drip','clam','slim','brim',
-    'frost','cloth','storm','bliss','crisp','drift','grasp','blend','trust'
+    // 3-letter
+    'cat','dog','sun','hat','map','run','big','cup','ant','bat','cod','dim','elm','fig',
+    'gem','hen','ivy','jam','keg','lid','mob','net','oak','peg','rat','rut','tin','van',
+    'yam','zip',
+    // 4-letter
+    'ball','bell','call','fall','hall','wall','fill','hill','milk','ring','sing','king',
+    'wing','frog','flag','snap','trap','plan','spin','grin','flip','slip','drip','clam',
+    'slim','brim','fish','bird','cake','book','tree','face','tall','warm','fast','cold',
+    'hand','land','sand','band','bend','lend','mend','send','find','kind','mind','bond',
+    'fond','pond','born','corn','horn','torn','burn','turn','bark','dark','mark','park',
+    'farm','harm','hard','yard','card','star','crab','grab','shed','chip','grip','trip',
+    'skip','knit','drum','plum','flaw','claw','draw','flow','glow','snow','blow','grew',
+    'chew','flew','blew','stem','step','slab','flat','chat','grit','quit','swim','trim',
+    'spit','knob','drub','clop','twig','swam','slug','shun','prop','plop','prod',
+    // 5-letter
+    'frost','cloth','storm','bliss','crisp','drift','grasp','blend','trust','candy',
+    'denim','elbow','floss','grind','hazel','jewel','lemon','maple','nerve','olive',
+    'piano','quill','rider','scone','tulip','usher','viola','waltz','yacht','zebra',
+    'abbot','blink','cleft','depot','expel','flood','gleam','hired','inept','joust',
+    'knack','lunar','manor','notch','orbit','pixel','quirk','rivet','scalp','thyme'
   ],
   normal: [
-    'garden','winter','bridge','family','branch','clever','frozen','silver',
-    'purple','orange','dinner','window','sunset','flower','market','button',
-    'castle','dragon','forest','rabbit','carpet','jacket','mirror','pencil',
-    'candle','basket','sailor','village','kitchen','thunder','blanket','captain',
-    'curtain','distant','endless','fortune','granite','harvest','journey','kingdom',
-    'lantern','mission','pattern','quarter','railway','station','trumpet','uniform',
-    'chamber','pilgrim','ancient','crimson','leisure','meadows','prophet','shelter',
-    'phantom','cobbler','freckle','gallant','silence','fissure','wander','locket'
+    'garden','winter','bridge','family','branch','clever','frozen','silver','purple',
+    'orange','dinner','window','sunset','flower','market','button','castle','dragon',
+    'forest','rabbit','carpet','jacket','mirror','pencil','candle','basket','sailor',
+    'village','kitchen','thunder','blanket','captain','curtain','distant','endless',
+    'fortune','granite','harvest','journey','kingdom','lantern','mission','pattern',
+    'quarter','railway','station','trumpet','uniform','chamber','pilgrim','ancient',
+    'crimson','leisure','meadows','prophet','shelter','phantom','cobbler','freckle',
+    'gallant','silence','fissure','wander','locket','barrel','gather','pillow',
+    'yellow','follow','borrow','narrow','hollow','shadow','willow','mellow','gentle',
+    'humble','turtle','bottle','cattle','battle','rattle','kettle','fiddle','middle',
+    'riddle','muddle','bubble','double','sample','gravel','travel','tunnel','channel',
+    'parcel','goblin','tender','vendor','temple','simple','couple','velvet','pebble',
+    'settle','cinder','fender','luster','magnet','insect','object','subject','project',
+    'expect','aspect','affect','effect','inject','select','detect','connect','protect',
+    'collect','respect','correct','inspect','neglect','perfect','reflect','suspect',
+    'abstract','contract','extract','attract','distract','subtract','interact'
   ],
   hard: [
     'symphony','colonel','schedule','necessary','beautiful','precious','conscience',
@@ -1207,7 +1273,20 @@ const WORD_BANKS = {
     'immediately','independent','particularly','approximately','exaggeration',
     'occasionally','consequence','acquaintance','bureaucratic','enthusiastic',
     'hypocritical','melancholy','outrageous','rhetoric','secretary','threshold',
-    'vegetable','committee','guarantee','lieutenant','ingenious','satellite'
+    'vegetable','committee','guarantee','lieutenant','ingenious','satellite',
+    'abbreviate','accurate','adequate','advertise','allegiance','ambiguous',
+    'apologize','apprehend','architect','argument','authentic','balcony','bargain',
+    'bizarre','boundary','calendar','campaign','candidate','carnival','category',
+    'celebrate','challenge','civilian','classify','collapse','collision','commence',
+    'communicate','competition','complement','compromise','conceive','condense',
+    'confident','congratulate','conspire','decisive','defendant','deliberate',
+    'delicate','desperate','discipline','dismissal','dominant','duplicate',
+    'efficient','elaborate','eliminate','emphasis','essential','estimate','evaluate',
+    'evidence','exquisite','feasible','fictional','flexible','formidable','fragile',
+    'frequency','frequent','genuine','gracious','gratitude','grievance','hesitate',
+    'ignorance','illuminate','immense','impartial','impatient','imperial','implement',
+    'importune','improper','impulse','incident','indicate','indulge','inference',
+    'inflate','insecure','instinct','integrity','intervene','intimate','invincible'
   ],
   veryHard: [
     'onomatopoeia','chrysanthemum','mnemonic','bureaucracy','phenomenon',
@@ -1219,7 +1298,22 @@ const WORD_BANKS = {
     'soliloquy','ubiquitous','verisimilitude','xenophobia','garrulous',
     'hieroglyphic','inebriated','juxtaposition','labyrinthine','millennium',
     'obsequious','perspicacity','recalcitrant','sesquipedalian','trepidation',
-    'vicissitude','abstemious','belligerent','conscientiously','idiosyncrasy'
+    'vicissitude','abstemious','belligerent','conscientiously','idiosyncrasy',
+    'abominable','acrimonious','alacrity','allegory','amalgamate','ameliorate',
+    'anachronism','anomalous','apotheosis','archipelago','aristocracy','asphyxiate',
+    'auspicious','avarice','bibliophile','blasphemy','boisterous','cacophony',
+    'capitulate','cataclysm','celestial','chauvinism','circumlocution','clandestine',
+    'cognizant','commiserate','compendium','connoisseur','consternation','contentious',
+    'corroborate','culpable','defamation','delineate','demagogue','denouement',
+    'depravity','dilapidated','diminutive','discrepancy','disheveled','dysfunctional',
+    'ebullient','effervescent','egregious','eloquence','emollient','empirical',
+    'equanimity','equivocate','evanescent','exacerbate','exhaustive','exorbitant',
+    'expeditious','extemporaneous','facetious','fallacious','fastidious','ferocious',
+    'flagitious','flamboyant','flippancy','fortuitous','frivolous','fugacious',
+    'grandiloquent','gratuitous','gregarious','halcyon','harbinger','hegemony',
+    'heterogeneous','hierarchical','hubris','hyperbole','ignominious','immutable',
+    'impeccable','imperturbable','incongruous','indiscriminate','ineffable',
+    'inexplicable','inscrutable','intransigent','inveterate','irascible','irrevocable'
   ]
 };
 
@@ -1273,6 +1367,7 @@ let G = {
   turnQueue:       [],
   competitorCount: 2,
   locked:          false,
+  inTiebreaker:    false,
 };
 
 /* ================================================
@@ -1281,7 +1376,7 @@ let G = {
 let chosenDiff = 'easy';
 
 function changeCount(delta) {
-  G.competitorCount = Math.max(1, Math.min(10, G.competitorCount + delta));
+  G.competitorCount = Math.max(1, Math.min(15, G.competitorCount + delta));
   document.getElementById('competitor-count').textContent = G.competitorCount;
   renderNameInputs();
 }
@@ -1347,10 +1442,47 @@ function processNextTurn() {
 
   if (G.turnQueue.length === 0) {
     const active = G.players.filter(p => p.status === 'active');
-    if (active.length === 0)                          { endGame(null);      return; }
-    if (active.length === 1 && G.players.length > 1) { endGame(active[0]); return; }
 
-    // Round complete — ask about difficulty before starting next
+    if (active.length === 0) {
+      // Everyone failed this round — check for a tie
+      const justEliminated = G.players.filter(p => p.eliminatedRound === G.currentRound);
+      if (justEliminated.length >= 2) {
+        // Restore tied players and start sudden death
+        justEliminated.forEach(p => { p.status = 'active'; p.eliminatedRound = null; });
+        G.inTiebreaker = true;
+        G.currentRound++;
+        buildTurnQueue();
+        updateHeader();
+        updatePlayerChips();
+        setTiebreakerUI(true);
+        showResult('tiebreaker', '', '', () => processNextTurn());
+      } else {
+        // Solo player out, or 1-vs-1 where no one wins
+        G.inTiebreaker = false;
+        setTiebreakerUI(false);
+        endGame(null);
+      }
+      return;
+    }
+
+    if (active.length === 1 && G.players.length > 1) {
+      G.inTiebreaker = false;
+      setTiebreakerUI(false);
+      endGame(active[0]);
+      return;
+    }
+
+    // Multiple active players remain after this round
+    if (G.inTiebreaker) {
+      // Both passed the tiebreaker — still tied, go again
+      G.currentRound++;
+      buildTurnQueue();
+      updateHeader();
+      showResult('tiebreaker', '', '', () => processNextTurn());
+      return;
+    }
+
+    // Normal round end — show difficulty prompt
     showDiffPrompt(() => {
       G.currentRound++;
       buildTurnQueue();
@@ -1365,6 +1497,10 @@ function processNextTurn() {
   G.typedLetters = [];
   G.locked       = false;
   updateGameDisplay();
+}
+
+function setTiebreakerUI(on) {
+  document.getElementById('tiebreaker-badge').classList.toggle('visible', on);
 }
 
 /* ================================================
@@ -1497,6 +1633,17 @@ function overrideIncorrect() {
 }
 
 /* ================================================
+   RE-ROLL WORD
+   ================================================ */
+function rerollWord() {
+  if (G.phase !== 'playing' || G.locked) return;
+  G.currentWord  = getRandomWord();
+  G.typedLetters = [];
+  document.getElementById('target-word').textContent = G.currentWord.toUpperCase();
+  renderLetterBoxes();
+}
+
+/* ================================================
    INPUT
    ================================================ */
 document.addEventListener('keydown', function(e) {
@@ -1534,6 +1681,8 @@ function updateGameDisplay() {
   updatePlayerChips();
   document.getElementById('current-player-name').textContent =
     G.players[G.currentIdx] ? G.players[G.currentIdx].name : '—';
+  document.querySelector('.player-banner-suffix').textContent =
+    G.inTiebreaker ? '— sudden death' : '— your turn';
   document.getElementById('target-word').textContent = G.currentWord.toUpperCase();
   renderLetterBoxes();
 }
@@ -1647,10 +1796,15 @@ function showResult(type, playerName, word, callback) {
     document.getElementById('result-title').textContent = randMsg(MSG_WINNER);
     document.getElementById('result-sub').textContent   = `${playerName} wins.`;
     playSound('fanfare');
+  } else if (type === 'tiebreaker') {
+    card.classList.add('tiebreaker-card');
+    document.getElementById('result-icon').textContent  = '↔';
+    document.getElementById('result-title').textContent = 'Tied.';
+    document.getElementById('result-sub').textContent   = 'Sudden death — spell correctly to win.';
   }
 
   overlay.classList.add('show');
-  const dur = type === 'winner' ? 3500 : 1800;
+  const dur = type === 'winner' ? 3500 : type === 'tiebreaker' ? 2400 : 1800;
   setTimeout(() => {
     overlay.classList.remove('show');
     setTimeout(callback, 300);
@@ -1822,13 +1976,14 @@ function newTournament() {
   G = {
     phase:'setup', players:[], currentIdx:0, currentRound:1,
     currentWord:'', typedLetters:[], startDiff:'easy', currentDiff:'easy',
-    usedWords:new Set(), turnQueue:[], competitorCount:2, locked:false,
+    usedWords:new Set(), turnQueue:[], competitorCount:2, locked:false, inTiebreaker:false,
   };
   document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
   const easyBtn = document.querySelector('.diff-btn[data-diff="easy"]');
   if (easyBtn) easyBtn.classList.add('active');
   chosenDiff = 'easy';
   document.getElementById('diff-desc').textContent = DIFF_DESCS['easy'];
+  setTiebreakerUI(false);
   showScreen('setup-screen');
 }
 
