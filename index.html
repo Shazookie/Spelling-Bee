@@ -850,6 +850,94 @@ body {
 .btn-reroll:active { transform: scale(.95); }
 
 /* ============================================================
+   HIDDEN TYPE INPUT  (mobile keyboard focus)
+   ============================================================ */
+#type-input {
+  position: fixed;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px; /* prevents iOS auto-zoom */
+}
+
+/* ============================================================
+   RESULT CONTINUE BUTTON
+   ============================================================ */
+.result-continue-btn {
+  margin-top: 12px;
+  padding: 12px 36px;
+  border-radius: var(--r);
+  border: 2px solid rgba(255,255,255,.38);
+  background: rgba(255,255,255,.1);
+  font-family: var(--f-display);
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #fff;
+  cursor: pointer;
+  transition: all .14s;
+}
+.result-continue-btn:hover  { background: rgba(255,255,255,.24); border-color: rgba(255,255,255,.65); }
+.result-continue-btn:active { transform: scale(.96); }
+.result-continue-hint {
+  font-family: var(--f-body);
+  font-size: .66rem;
+  color: rgba(255,255,255,.35);
+  margin-top: 4px;
+}
+
+/* ============================================================
+   CAREER STATS TABLE
+   ============================================================ */
+.career-section {
+  padding: 20px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--surface-3);
+}
+.career-table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+}
+.career-table th {
+  font-family: var(--f-display);
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  text-align: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--surface-3);
+}
+.career-table th:first-child { text-align: left; }
+.career-table td {
+  font-family: var(--f-body);
+  font-size: .82rem;
+  color: var(--text-2);
+  padding: 7px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--surface-3);
+}
+.career-table td:first-child {
+  font-family: var(--f-display);
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+}
+.career-table tr:last-child td { border-bottom: none; }
+
+/* ============================================================
    QUIT BUTTON
    ============================================================ */
 .btn-quit {
@@ -1108,6 +1196,8 @@ body {
     <div id="result-title" class="result-title"></div>
     <div id="result-sub"   class="result-sub"></div>
     <div id="result-word"  class="result-word"></div>
+    <button id="result-continue-btn" class="result-continue-btn" onclick="continueFromResult()">Ready →</button>
+    <div id="result-continue-hint" class="result-continue-hint">or press Enter</div>
   </div>
 </div>
 
@@ -1157,6 +1247,7 @@ body {
 
     <div class="lb-actions">
       <button class="btn btn-primary"  onclick="newTournament()">New Game</button>
+      <button class="btn btn-ghost"    onclick="playAgainSamePlayers()">Play Again</button>
       <button class="btn btn-ghost"    onclick="openHistory()">History</button>
     </div>
   </div>
@@ -1174,6 +1265,11 @@ body {
     <div id="history-content"></div>
   </div>
 </div>
+
+
+<input id="type-input" type="text"
+  autocomplete="off" autocorrect="off" autocapitalize="none"
+  spellcheck="false" inputmode="text" aria-hidden="true">
 
 
 <!-- =====================================================
@@ -1437,8 +1533,9 @@ function buildTurnQueue() {
 }
 
 function processNextTurn() {
-  if (document.activeElement && document.activeElement !== document.body)
-    document.activeElement.blur();
+  // Blur any focused element EXCEPT the hidden type input (keeps mobile keyboard alive)
+  const ae = document.activeElement;
+  if (ae && ae !== document.body && ae.id !== 'type-input') ae.blur();
 
   if (G.turnQueue.length === 0) {
     const active = G.players.filter(p => p.status === 'active');
@@ -1497,6 +1594,7 @@ function processNextTurn() {
   G.typedLetters = [];
   G.locked       = false;
   updateGameDisplay();
+  focusTypeInput();
 }
 
 function setTiebreakerUI(on) {
@@ -1644,27 +1742,75 @@ function rerollWord() {
 }
 
 /* ================================================
-   INPUT
+   INPUT  (desktop + mobile)
    ================================================ */
-document.addEventListener('keydown', function(e) {
-  if (G.phase !== 'playing' || G.locked)        return;
-  if (e.target && e.target.tagName === 'INPUT') return;
+function focusTypeInput() {
+  const inp = document.getElementById('type-input');
+  inp.value = '';
+  inp.focus({ preventScroll: true });
+}
 
+const typeInput = document.getElementById('type-input');
+
+// Backspace + Enter — reliable on both desktop and mobile
+typeInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (document.getElementById('result-overlay').classList.contains('show')) {
+      continueFromResult();
+    } else if (G.phase === 'playing' && !G.locked) {
+      handleSubmit();
+    }
+    return;
+  }
+  if (G.phase !== 'playing' || G.locked) return;
   if (e.key === 'Backspace') {
     e.preventDefault();
     if (G.typedLetters.length > 0) { G.typedLetters.pop(); renderLetterBoxes(); }
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    handleSubmit();
-  } else if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-    if (G.typedLetters.length < G.currentWord.length) {
+  }
+});
+
+// Character input — handles mobile keyboard AND desktop typing
+typeInput.addEventListener('input', function(e) {
+  // Mobile backspace comes through as an input event
+  if (e.inputType === 'deleteContentBackward') {
+    typeInput.value = '';
+    if (G.phase === 'playing' && !G.locked && G.typedLetters.length > 0) {
+      G.typedLetters.pop(); renderLetterBoxes();
+    }
+    return;
+  }
+  // Mobile Enter / Go key
+  if (e.inputType === 'insertLineBreak') {
+    typeInput.value = '';
+    if (document.getElementById('result-overlay').classList.contains('show')) {
+      continueFromResult();
+    } else if (G.phase === 'playing' && !G.locked) {
+      handleSubmit();
+    }
+    return;
+  }
+  if (G.phase !== 'playing' || G.locked) { typeInput.value = ''; return; }
+  const val = typeInput.value;
+  typeInput.value = '';
+  for (const ch of val) {
+    if (/[a-zA-Z]/.test(ch) && G.typedLetters.length < G.currentWord.length) {
       const pos     = G.typedLetters.length;
-      const typed   = e.key.toUpperCase();
+      const typed   = ch.toUpperCase();
       const correct = typed === G.currentWord[pos].toUpperCase();
       G.typedLetters.push({ char: typed, correct });
       playSound(correct ? 'correct' : 'incorrect');
       renderLetterBoxes();
     }
+  }
+});
+
+// Hardware keyboard Enter when type input isn't focused (desktop safety net)
+document.addEventListener('keydown', function(e) {
+  if (e.target && e.target.id === 'type-input') return; // already handled above
+  if (e.key === 'Enter' && document.getElementById('result-overlay').classList.contains('show')) {
+    e.preventDefault();
+    continueFromResult();
   }
 });
 
@@ -1772,12 +1918,17 @@ function shakeCard(callback) {
 /* ================================================
    RESULT OVERLAY
    ================================================ */
+let resultCallback = null;
+
 function showResult(type, playerName, word, callback) {
   const overlay = document.getElementById('result-overlay');
   const card    = document.getElementById('result-card');
   card.className = 'result-card';
 
   document.getElementById('result-word').textContent = '';
+
+  let btnText  = 'Ready →';
+  let hintText = 'or press Enter';
 
   if (type === 'correct') {
     card.classList.add('correct-card');
@@ -1796,19 +1947,33 @@ function showResult(type, playerName, word, callback) {
     document.getElementById('result-title').textContent = randMsg(MSG_WINNER);
     document.getElementById('result-sub').textContent   = `${playerName} wins.`;
     playSound('fanfare');
+    btnText = 'See Results →';
   } else if (type === 'tiebreaker') {
     card.classList.add('tiebreaker-card');
     document.getElementById('result-icon').textContent  = '↔';
     document.getElementById('result-title').textContent = 'Tied.';
     document.getElementById('result-sub').textContent   = 'Sudden death — spell correctly to win.';
+    btnText = 'Begin →';
   }
 
+  document.getElementById('result-continue-btn').textContent = btnText;
+  document.getElementById('result-continue-hint').textContent = hintText;
+
+  resultCallback = callback;
   overlay.classList.add('show');
-  const dur = type === 'winner' ? 3500 : type === 'tiebreaker' ? 2400 : 1800;
+}
+
+function continueFromResult() {
+  const overlay = document.getElementById('result-overlay');
+  if (!overlay.classList.contains('show')) return;
+  overlay.classList.remove('show');
+  // Focus immediately inside the tap/click handler — iOS requires this to be synchronous
+  focusTypeInput();
+  const cb = resultCallback;
+  resultCallback = null;
   setTimeout(() => {
-    overlay.classList.remove('show');
-    setTimeout(callback, 300);
-  }, dur);
+    if (cb) cb();
+  }, 300);
 }
 
 /* ================================================
@@ -1906,6 +2071,34 @@ function renderLeaderboard() {
       </div>
     </div>`;
 
+  // Career stats — only shown if any player has played more than once
+  let careerData = {};
+  try { careerData = JSON.parse(localStorage.getItem('spellingBee_v2_career') || '{}'); } catch (_) {}
+  const withCareer = G.players.filter(p => careerData[p.name] && careerData[p.name].gamesPlayed > 1);
+  if (withCareer.length > 0) {
+    html += `
+    <div class="career-section">
+      <div class="t-label">Career Records</div>
+      <table class="career-table">
+        <thead><tr>
+          <th>Player</th><th>Games</th><th>Wins</th><th>Win %</th><th>Accuracy</th>
+        </tr></thead>
+        <tbody>`;
+    withCareer.forEach(p => {
+      const c       = careerData[p.name];
+      const winPct  = c.gamesPlayed > 0 ? Math.round(c.wins / c.gamesPlayed * 100) : 0;
+      const acc     = c.totalWords  > 0 ? Math.round(c.totalCorrect / c.totalWords * 100) : 0;
+      html += `<tr>
+        <td>${esc(p.name)}</td>
+        <td>${c.gamesPlayed}</td>
+        <td>${c.wins}</td>
+        <td>${winPct}%</td>
+        <td>${acc}%</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
   container.innerHTML = html;
 }
 
@@ -1933,6 +2126,22 @@ function saveSession() {
     });
     if (sessions.length > 25) sessions.pop();
     localStorage.setItem('spellingBee_v2_sessions', JSON.stringify(sessions));
+  } catch (_) {}
+  saveCareerStats();
+}
+
+function saveCareerStats() {
+  try {
+    const raw    = localStorage.getItem('spellingBee_v2_career') || '{}';
+    const career = JSON.parse(raw);
+    G.players.forEach(p => {
+      if (!career[p.name]) career[p.name] = { gamesPlayed:0, wins:0, totalWords:0, totalCorrect:0 };
+      career[p.name].gamesPlayed++;
+      career[p.name].totalWords   += p.wordsAttempted;
+      career[p.name].totalCorrect += p.wordsCorrect;
+      if (p.status === 'active') career[p.name].wins++;
+    });
+    localStorage.setItem('spellingBee_v2_career', JSON.stringify(career));
   } catch (_) {}
 }
 
@@ -1970,8 +2179,27 @@ function closeHistory() {
 }
 
 /* ================================================
-   NEW GAME
+   PLAY AGAIN / NEW GAME
    ================================================ */
+function playAgainSamePlayers() {
+  const names    = G.players.map(p => p.name);
+  const lastDiff = G.startDiff;
+  newTournament(); // resets state, switches to setup screen
+  // Pre-fill player count + names
+  G.competitorCount = names.length;
+  document.getElementById('competitor-count').textContent = names.length;
+  renderNameInputs();
+  document.querySelectorAll('.name-input').forEach((inp, i) => {
+    if (names[i]) inp.value = names[i];
+  });
+  // Restore difficulty selection
+  chosenDiff = lastDiff;
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.diff === lastDiff);
+  });
+  document.getElementById('diff-desc').textContent = DIFF_DESCS[lastDiff];
+}
+
 function newTournament() {
   G = {
     phase:'setup', players:[], currentIdx:0, currentRound:1,
